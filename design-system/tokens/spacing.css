@@ -1,0 +1,12 @@
+:root{
+  --space-0:0px; --space-1:2px; --space-2:4px; --space-3:8px; --space-4:12px;
+  --space-5:16px; --space-6:20px; --space-7:24px; --space-8:32px; --space-9:40px;
+  --space-10:48px; --space-11:64px; --space-12:80px;
+
+  --screen-pad-x:20px;         /* горизонтальные поля Mini App */
+  --screen-pad-top:16px;
+  --safe-bottom:env(safe-area-inset-bottom,0px);
+  --dock-height:76px;          /* нижняя панель действия над системной панелью Telegram */
+  --content-max:430px;         /* максимальная ширина контента Mini App */
+  --hit-min:44px;              /* минимальная зона нажатия */
+}

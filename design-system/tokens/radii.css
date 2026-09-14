@@ -1,0 +1,7 @@
+:root{
+  --radius-xs:6px; --radius-sm:10px; --radius-md:14px; --radius-lg:20px;
+  --radius-xl:26px; --radius-card:18px;   /* карта таро */
+  --radius-sheet:28px;                    /* нижний шит */
+  --radius-pill:999px;
+  --border-width:1px;
+}
