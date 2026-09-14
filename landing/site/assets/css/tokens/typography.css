@@ -1,0 +1,23 @@
+:root{
+  /* 7-ступенчатая шкала. Имя = назначение, не размер. */
+  --type-display-size:34px; --type-display-lh:38px; --type-display-ls:.01em; --type-display-weight:300; /* имя карты */
+  --type-title-size:27px;   --type-title-lh:34px;   --type-title-ls:-.015em; --type-title-weight:600;  /* заголовок экрана */
+  --type-heading-size:21px; --type-heading-lh:28px; --type-heading-ls:-.01em; --type-heading-weight:600;/* секция */
+  --type-lead-size:18px;    --type-lead-lh:26px;    --type-lead-ls:-.005em;  --type-lead-weight:500;   /* подзаголовок, вопрос */
+  --type-body-size:16px;    --type-body-lh:24px;    --type-body-ls:0;        --type-body-weight:400;   /* интерфейс, реплики */
+  --type-read-size:17px;    --type-read-lh:29px;    --type-read-ls:.004em;   --type-read-weight:400;   /* толкование */
+  --type-caption-size:13px; --type-caption-lh:18px; --type-caption-ls:.01em; --type-caption-weight:500;/* мета, время */
+  --type-label-size:11px;   --type-label-lh:14px;   --type-label-ls:.10em;   --type-label-weight:600;  /* позиция в раскладе */
+
+  --read-measure:34em;      /* максимальная мера строки толкования */
+  --read-para-gap:14px;     /* отбивка между абзацами толкования */
+}
+.t-display{font:var(--type-display-weight) var(--type-display-size)/var(--type-display-lh) var(--font-accent);letter-spacing:var(--type-display-ls)}
+.t-title{font:var(--type-title-weight) var(--type-title-size)/var(--type-title-lh) var(--font-core);letter-spacing:var(--type-title-ls)}
+.t-heading{font:var(--type-heading-weight) var(--type-heading-size)/var(--type-heading-lh) var(--font-core);letter-spacing:var(--type-heading-ls)}
+.t-lead{font:var(--type-lead-weight) var(--type-lead-size)/var(--type-lead-lh) var(--font-core);letter-spacing:var(--type-lead-ls)}
+.t-body{font:var(--type-body-weight) var(--type-body-size)/var(--type-body-lh) var(--font-core)}
+.t-read{font:var(--type-read-weight) var(--type-read-size)/var(--type-read-lh) var(--font-read);letter-spacing:var(--type-read-ls);max-width:var(--read-measure)}
+.t-read p+p{margin-top:var(--read-para-gap)}
+.t-caption{font:var(--type-caption-weight) var(--type-caption-size)/var(--type-caption-lh) var(--font-core);letter-spacing:var(--type-caption-ls)}
+.t-label{font:var(--type-label-weight) var(--type-label-size)/var(--type-label-lh) var(--font-core);letter-spacing:var(--type-label-ls);text-transform:uppercase}

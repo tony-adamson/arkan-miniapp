@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Аркан — скоро</title>
+<meta name="description" content="Аркан скоро откроется в Telegram.">
+<meta name="robots" content="noindex">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#0A0B0F" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#FBFAF8" media="(prefers-color-scheme: light)">
+<link rel="preload" href="/assets/fonts/manrope-cyrillic-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/assets/fonts/cormorant-garamond-cyrillic-300-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/assets/css/arkan.css">
+<script>
+(function(){
+  var t;
+  try { t = localStorage.getItem("arkan-theme"); } catch (e) {}
+  if (t !== "dark" && t !== "light") {
+    t = window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+  }
+  document.documentElement.setAttribute("data-theme", t);
+})();
+</script>
+</head>
+<body>
+
+<header class="header">
+  <div class="wrap">
+    <div class="brand">
+      <a class="brand__name" href="/">Аркан</a>
+      <span class="brand__kicker t-label">Telegram Mini App</span>
+    </div>
+    <nav class="nav">
+      <button class="theme-toggle t-caption" type="button" data-theme-toggle aria-label="Светлая тема, переключить оформление">
+        <span data-theme-label>Светлая тема</span>
+      </button>
+    </nav>
+  </div>
+</header>
+
+<main class="section cta">
+  <div class="wrap">
+    <h1 class="cta__title">Скоро.</h1>
+    <p class="cta__lead t-read">Бот ещё готовится. Когда он откроется, эта ссылка приведёт прямо в Telegram.</p>
+    <a class="btn btn--lg btn--text" href="/">Вернуться на главную</a>
+  </div>
+</main>
+
+<footer class="footer">
+  <div class="wrap">
+    <span class="footer__brand">Аркан</span>
+    <div class="footer__links">
+      <a class="t-caption" href="/#how">Как это работает</a>
+      <a class="t-caption" href="/#memory">Память</a>
+      <a class="t-caption" href="/privacy/">Политика конфиденциальности</a>
+    </div>
+    <span class="footer__year t-caption">2026</span>
+  </div>
+</footer>
+
+<script src="/assets/js/app.js" defer></script>
+</body>
+</html>

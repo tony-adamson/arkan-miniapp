@@ -1,0 +1,109 @@
+# Аркан — лендинг. Конфигурация nginx для статики на VPS.
+#
+# КУДА КЛАСТЬ: /etc/nginx/sites-available/arkana + симлинк в sites-enabled
+# (так устроены остальные сайты на сервере) либо /etc/nginx/conf.d/arkana.conf.
+# Файл содержит map — директиву уровня http, — поэтому подключается внутрь
+# блока http; заменить им весь /etc/nginx/nginx.conf нельзя.
+#
+# Домен подставляется скриптом: tools/set-domain.sh arkana.hoapps.dev
+# создаёт deploy/nginx.conf, не трогая этот шаблон.
+#
+# Сертификат (схема как у соседних сайтов — webroot, не --nginx):
+#   sudo certbot certonly --webroot -w /var/www/letsencrypt -d ARKAN_DOMAIN
+# Продление проверяется таймером certbot: sudo certbot renew --dry-run
+#
+# Перед применением на сервере обязательно: sudo nginx -t
+
+# Cache-Control считаем здесь, а не через add_header в location.
+# Причина: любой add_header внутри location отменяет наследование ВСЕХ add_header
+# из server-блока — security-заголовки перестали бы доходить до ответов.
+map $uri $arkan_cache_control {
+    default                      "no-cache";                                # HTML
+    ~^/assets/fonts/             "public, max-age=31536000, immutable";     # имена стабильны
+    ~^/assets/.*\.(css|js)$      "public, max-age=3600, must-revalidate";   # без хеша в имени
+    ~^/assets/.*\.(png|svg|ico)$ "public, max-age=604800";
+}
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name ARKAN_DOMAIN;
+
+    location ^~ /.well-known/acme-challenge/ {
+        root /var/www/letsencrypt;
+        default_type text/plain;
+    }
+
+    location / {
+        return 301 https://ARKAN_DOMAIN$request_uri;
+    }
+}
+
+server {
+    # Старый синтаксис http2 в listen работает и на nginx 1.18–1.24 (стоковые
+    # Debian/Ubuntu), и на 1.25+ (там он объявлен устаревшим, но действует).
+    # Директива `http2 on;` появилась только в 1.25.1 и на старых сборках
+    # роняет конфиг с «unknown directive».
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name ARKAN_DOMAIN;
+
+    root  /var/www/arkana;
+    index index.html;
+    charset utf-8;
+
+    ssl_certificate     /etc/letsencrypt/live/ARKAN_DOMAIN/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/ARKAN_DOMAIN/privkey.pem;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+    ssl_session_cache   shared:SSL:10m;
+
+    # gzip только для этого сайта: gzip on включён глобально в nginx.conf,
+    # но без gzip_types сжимается лишь text/html.
+    gzip              on;
+    gzip_vary         on;
+    gzip_comp_level   6;
+    gzip_min_length   256;
+    # text/javascript — основной MIME для .js начиная с nginx 1.21.1;
+    # application/javascript оставлен для более старых сборок.
+    gzip_types        text/plain text/css text/javascript application/javascript
+                      application/json image/svg+xml application/xml;
+    # woff2 уже сжат внутри — повторно не жмём.
+
+    # Лендинг открывается в webview Telegram — фреймить его должен уметь Telegram,
+    # поэтому X-Frame-Options не ставим, ограничиваемся frame-ancestors.
+    # includeSubDomains намеренно НЕ включён: поддоменов пока нет, а директива
+    # необратима на весь max-age и сломала бы любой будущий HTTP-only поддомен.
+    # Включать после того, как список поддоменов зафиксирован.
+    add_header Strict-Transport-Security "max-age=31536000" always;
+    add_header X-Content-Type-Options    "nosniff" always;
+    add_header Referrer-Policy           "strict-origin-when-cross-origin" always;
+    add_header Content-Security-Policy   "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self' 'unsafe-inline'; font-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'self' https://web.telegram.org" always;
+    add_header Cache-Control             $arkan_cache_control always;
+    # 'unsafe-inline' в script-src нужен инлайн-скрипту темы в <head>: он должен
+    # выполниться до первой отрисовки. Убрать можно, добавив ему nonce через
+    # sub_filter или перейдя на сборку с хешем.
+
+    location /assets/fonts/ {
+        access_log off;
+    }
+
+    location ~* ^/assets/.*\.(png|svg|ico)$ {
+        access_log off;
+    }
+
+    location ^~ /.well-known/acme-challenge/ {
+        root /var/www/letsencrypt;
+        default_type text/plain;
+    }
+
+    location / {
+        try_files $uri $uri/ =404;
+    }
+
+    # Отдельной 404-страницы нет намеренно: подменять её лендингом нельзя —
+    # частично уехавший rsync выглядел бы как рабочий сайт.
+}
+
+# После деплоя проверить, что заголовки действительно доходят:
+#   curl -sI https://ARKAN_DOMAIN/ | grep -iE 'content-security-policy|cache-control'
+#   curl -sI https://ARKAN_DOMAIN/assets/css/arkan.css | grep -iE 'x-content-type|cache-control'

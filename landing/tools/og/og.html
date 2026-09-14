@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="http://127.0.0.1:8765/assets/css/arkan.css">
+<style>
+  html,body{margin:0;padding:0;width:1200px;height:630px;overflow:hidden}
+  .og{position:relative;width:1200px;height:630px;background:var(--surface);
+      display:flex;flex-direction:column;justify-content:space-between;padding:72px 80px;box-sizing:border-box}
+  .og__glow{position:absolute;right:-40px;top:62%;transform:translateY(-50%);
+            width:560px;height:560px;border-radius:50%;background:var(--accent-muted);filter:blur(80px)}
+  .og__top{position:relative;display:flex;align-items:baseline;gap:16px}
+  .og__brand{font-family:var(--font-accent);font-weight:300;font-size:40px;letter-spacing:.06em;color:var(--text-primary)}
+  .og__kicker{color:var(--text-tertiary)}
+  .og__title{position:relative;margin:0;font-family:var(--font-accent);font-weight:300;
+             font-size:72px;line-height:1.06;letter-spacing:.01em;color:var(--text-primary);max-width:13em}
+  .og__foot{position:relative;display:flex;align-items:center;justify-content:space-between}
+  .og__lead{margin:0;color:var(--text-secondary);max-width:26em}
+  .og__cards{display:flex;gap:14px;align-items:flex-end}
+  .og__card{width:84px;height:136px;border-radius:var(--radius-md);background:var(--card-back);
+            border:1px solid rgba(255,255,255,.10);box-shadow:var(--shadow-card-rest);display:grid;place-items:center}
+  .og__card:first-child{transform:rotate(-4deg) translateY(-6px)}
+  .og__card:last-child{transform:rotate(4deg) translateY(-6px)}
+  .og__card--mid{width:110px;height:178px;border-radius:var(--radius-card)}
+  .og__sigil{width:56%;aspect-ratio:1;border-radius:50%;border:1px solid var(--accent-border);opacity:.75}
+</style>
+</head>
+<body>
+<div class="og">
+  <div class="og__glow"></div>
+  <div class="og__top">
+    <span class="og__brand">Аркан</span>
+    <span class="og__kicker t-label">Telegram Mini App</span>
+  </div>
+  <h1 class="og__title">Расклад,<br>раскрытый по одной карте.</h1>
+  <div class="og__foot">
+    <p class="og__lead t-read">Не предсказание, а разбор конфигурации — в диалоге, внутри Telegram.</p>
+    <div class="og__cards">
+      <div class="og__card"><span class="og__sigil"></span></div>
+      <div class="og__card og__card--mid"><span class="og__sigil"></span></div>
+      <div class="og__card"><span class="og__sigil"></span></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

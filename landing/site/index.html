@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>Аркан — ИИ-таролог в Telegram</title>
+<meta name="description" content="Аркан подбирает расклад под вашу ситуацию и открывает его по одной карте, а между картами задаёт вопрос, который возвращает вас к вашей же ситуации. Telegram Mini App, без установки.">
+<link rel="canonical" href="https://arkana.hoapps.dev/">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Аркан">
+<meta property="og:locale" content="ru_RU">
+<meta property="og:title" content="Аркан — ИИ-таролог в Telegram">
+<meta property="og:description" content="Расклад, раскрытый по одной карте. Не предсказание, а разбор конфигурации — в диалоге, внутри Telegram.">
+<meta property="og:url" content="https://arkana.hoapps.dev/">
+<meta property="og:image" content="https://arkana.hoapps.dev/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Аркан — расклад, раскрытый по одной карте">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Аркан — ИИ-таролог в Telegram">
+<meta name="twitter:description" content="Расклад, раскрытый по одной карте. Не предсказание, а разбор конфигурации.">
+<meta name="twitter:image" content="https://arkana.hoapps.dev/assets/og.png">
+
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+<meta name="theme-color" content="#0A0B0F" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#FBFAF8" media="(prefers-color-scheme: light)">
+
+<link rel="preload" href="/assets/fonts/manrope-cyrillic-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/assets/fonts/cormorant-garamond-cyrillic-300-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/assets/css/arkan.css">
+
+<script>
+/* Тема до первой отрисовки, чтобы не мигало. Дефолт — системная схема. */
+(function(){
+  var t;
+  try { t = localStorage.getItem("arkan-theme"); } catch (e) {}
+  if (t !== "dark" && t !== "light") {
+    t = window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+  }
+  document.documentElement.setAttribute("data-theme", t);
+})();
+</script>
+</head>
+
+<body>
+
+<header class="header">
+  <div class="wrap">
+    <div class="brand">
+      <span class="brand__name">Аркан</span>
+      <span class="brand__kicker t-label">Telegram Mini App</span>
+    </div>
+    <nav class="nav">
+      <a class="nav__link t-body" href="#how">Как это работает</a>
+      <a class="nav__link t-body" href="#memory">Память</a>
+      <button class="theme-toggle t-caption" type="button" data-theme-toggle aria-label="Светлая тема, переключить оформление">
+        <span data-theme-label>Светлая тема</span>
+      </button>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+  <section class="hero">
+    <div class="wrap">
+      <div class="hero__text">
+        <span class="hero__kicker t-label">ИИ-таролог в диалоге</span>
+        <h1 class="hero__title">Расклад,<br>раскрытый<br>по одной карте.</h1>
+        <p class="hero__lead t-read">Вы описываете ситуацию своими словами. Аркан подбирает расклад и открывает его постепенно — между картами задаёт вопрос, который возвращает вас к вашей же ситуации.</p>
+        <div class="hero__actions">
+          <a class="btn btn--lg" href="/soon/">Открыть в Telegram</a>
+          <a class="btn btn--lg btn--text" href="#how">Как это работает</a>
+        </div>
+        <span class="hero__note t-caption">Без установки. Внутри Telegram.</span>
+      </div>
+
+      <div class="hero__visual">
+        <div class="hero__glow" aria-hidden="true"></div>
+        <div class="hero__cards">
+
+          <figure class="tarot tarot--sm" data-state="back">
+            <button class="tarot__btn" type="button" data-reveal aria-label="Карта рубашкой вверх — нажмите, чтобы раскрыть">
+              <span class="tarot__flip">
+                <span class="tarot__side tarot__back" aria-hidden="true"><span class="tarot__sigil"></span></span>
+                <span class="tarot__side tarot__face" aria-hidden="true">
+                  <span class="tarot__numeral t-label">II</span>
+                  <span class="tarot__name">Жрица</span>
+                  <span class="tarot__rule"></span>
+                </span>
+              </span>
+            </button>
+            <figcaption class="tarot__cap">
+              <span class="tarot__pos t-label">Прошлое</span>
+              <span class="tarot__title t-display">Жрица</span>
+            </figcaption>
+          </figure>
+
+          <figure class="tarot tarot--md" data-state="back">
+            <button class="tarot__btn" type="button" data-reveal aria-label="Карта рубашкой вверх — нажмите, чтобы раскрыть">
+              <span class="tarot__flip">
+                <span class="tarot__side tarot__back" aria-hidden="true"><span class="tarot__sigil"></span></span>
+                <span class="tarot__side tarot__face" aria-hidden="true">
+                  <span class="tarot__numeral t-label">XVI</span>
+                  <span class="tarot__name">Башня</span>
+                  <span class="tarot__rule"></span>
+                </span>
+              </span>
+            </button>
+            <figcaption class="tarot__cap">
+              <span class="tarot__pos t-label">Сейчас</span>
+              <span class="tarot__title t-display">Башня</span>
+            </figcaption>
+          </figure>
+
+          <figure class="tarot tarot--sm" data-state="back">
+            <button class="tarot__btn" type="button" data-reveal aria-label="Карта рубашкой вверх — нажмите, чтобы раскрыть">
+              <span class="tarot__flip">
+                <span class="tarot__side tarot__back" aria-hidden="true"><span class="tarot__sigil"></span></span>
+                <span class="tarot__side tarot__face" aria-hidden="true">
+                  <span class="tarot__numeral t-label">XVII</span>
+                  <span class="tarot__name">Звезда</span>
+                  <span class="tarot__rule"></span>
+                </span>
+              </span>
+            </button>
+            <figcaption class="tarot__cap">
+              <span class="tarot__pos t-label">Шаг</span>
+              <span class="tarot__title t-display">Звезда</span>
+            </figcaption>
+          </figure>
+
+        </div>
+        <span class="hero__hint t-caption" data-hero-hint aria-live="polite">Нажмите на карту.</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="section how" id="how">
+    <div class="wrap">
+      <h2 class="how__title t-title">Три хода вместо одного ответа.</h2>
+      <div class="how__grid">
+        <article class="step">
+          <span class="step__num">I</span>
+          <h3 class="step__title t-heading">Вы говорите как есть</h3>
+          <p class="step__body t-body">Одно поле и один вопрос: о чём вы думаете сегодня. Формулировка может быть сбивчивой — этого достаточно.</p>
+        </article>
+        <article class="step">
+          <span class="step__num">II</span>
+          <h3 class="step__title t-heading">Аркан выбирает расклад</h3>
+          <p class="step__body t-body">Под ситуацию, а не по шаблону. Карты открываются по одной, с паузой — это часть смысла, а не задержка.</p>
+        </article>
+        <article class="step">
+          <span class="step__num">III</span>
+          <h3 class="step__title t-heading">Вопрос возвращается вам</h3>
+          <p class="step__body t-body">После каждой карты — уточнение. Толкование складывается из ваших ответов, поэтому расклад ваш, а не общий.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="section dialog">
+    <div class="wrap">
+      <div class="dialog__text">
+        <span class="dialog__kicker t-label">Диалог</span>
+        <h2 class="dialog__title t-title">Не предсказание. Разбор конфигурации.</h2>
+        <p class="dialog__lead t-read">Аркан описывает то, что видит в карте, и оставляет вывод за вами. Он не обещает исходов и не даёт медицинских, юридических и финансовых советов.</p>
+      </div>
+
+      <div class="panel">
+        <div class="msg msg--user">
+          <div class="msg__col">
+            <div class="msg__bubble t-body">Второй месяц не могу решиться уйти с работы.</div>
+            <span class="msg__time t-caption">21:14</span>
+          </div>
+        </div>
+
+        <div class="msg">
+          <div class="msg__col">
+            <div class="msg__bubble t-read">
+              <p>Башня говорит не о катастрофе, а о конструкции, которая держалась дольше, чем следовало.</p>
+              <p>Обычно к этому моменту человек уже знает ответ и ищет разрешение его произнести.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel__ask">
+          <span class="panel__ask-label t-caption" id="ask-label">Что из этого вы уже знали до карты?</span>
+          <!-- Витрина состояния: в лендинге чипы не интерактивны, поэтому не кнопки. -->
+          <ul class="panel__chips" aria-labelledby="ask-label">
+            <li class="chip">Знала почти всё</li>
+            <li class="chip chip--selected">Только часть<span class="sr-only"> — выбрано</span></li>
+            <li class="chip">Совсем нет</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section memory" id="memory">
+    <div class="wrap">
+      <div class="memory__head">
+        <h2 class="memory__title t-title">Аркан помнит прошлые расклады.</h2>
+        <p class="memory__lead t-body">История остаётся с вами: к незакрытому раскладу можно вернуться с той же карты, а новый — опирается на предыдущие.</p>
+      </div>
+      <div class="memory__grid">
+
+        <article class="spread">
+          <header class="spread__head">
+            <span class="spread__date t-caption">Сегодня, 21:14</span>
+            <span class="spread__status spread__status--today t-label">Сегодня</span>
+          </header>
+          <p class="spread__q t-lead">Второй месяц не могу решиться уйти с работы.</p>
+          <footer class="spread__cards">
+            <span class="spread__card">Жрица</span>
+            <span class="spread__card">Башня</span>
+            <span class="spread__card">Звезда</span>
+          </footer>
+        </article>
+
+        <article class="spread">
+          <header class="spread__head">
+            <span class="spread__date t-caption">24 августа</span>
+            <span class="spread__status spread__status--unfinished t-label">Не завершён</span>
+          </header>
+          <p class="spread__q t-lead">Стоит ли говорить прямо о том, что меня задело.</p>
+          <footer class="spread__cards">
+            <span class="spread__card">Двойка мечей</span>
+            <span class="spread__card">Луна</span>
+          </footer>
+        </article>
+
+        <article class="spread">
+          <header class="spread__head">
+            <span class="spread__date t-caption">19 августа</span>
+          </header>
+          <p class="spread__q t-lead">Что держит меня в этом городе.</p>
+          <footer class="spread__cards">
+            <span class="spread__card">Восьмёрка кубков</span>
+            <span class="spread__card">Колесо</span>
+            <span class="spread__card">Отшельник</span>
+          </footer>
+        </article>
+
+      </div>
+    </div>
+  </section>
+
+  <section class="section cta">
+    <div class="wrap">
+      <h2 class="cta__title">Один вопрос — и первая карта.</h2>
+      <p class="cta__lead t-read">Вечер, тишина и три минуты. Больше ничего не нужно.</p>
+      <a class="btn btn--lg" href="/soon/">Открыть в Telegram</a>
+      <span class="cta__note t-caption">Аркан не даёт медицинских, юридических и финансовых советов.</span>
+    </div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  <div class="wrap">
+    <span class="footer__brand">Аркан</span>
+    <div class="footer__links">
+      <a class="t-caption" href="#how">Как это работает</a>
+      <a class="t-caption" href="#memory">Память</a>
+      <a class="t-caption" href="/privacy/">Политика конфиденциальности</a>
+    </div>
+    <span class="footer__year t-caption">2026</span>
+  </div>
+</footer>
+
+<script src="/assets/js/app.js" defer></script>
+</body>
+</html>

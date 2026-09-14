@@ -1,0 +1,97 @@
+:root{
+  /* ---- neutral scale (ink) : cool near-black, faint blue undertone ---- */
+  --ink-950:#0A0B0F; --ink-900:#101219; --ink-850:#141721;
+  --ink-800:#191D28; --ink-700:#222735; --ink-600:#2F3546;
+  --ink-500:#454C60; --ink-400:#6A7288; --ink-300:#939AAE;
+  --ink-200:#BCC1CF; --ink-100:#DDE0E8; --ink-050:#F3F4F8; --ink-000:#FFFFFF;
+
+  /* ---- primary accent : "смоковый ирис" — desaturated periwinkle ---- */
+  --iris-100:#E4E4F7; --iris-200:#C7C6EE; --iris-300:#A9A8E4;
+  --iris-400:#8E8CD8; --iris-500:#726FC7; --iris-600:#5A56AC;
+  --iris-700:#464387; --iris-800:#302E5E; --iris-900:#1E1D3B;
+
+  /* ---- secondary accent : "свеча" — warm muted sand ---- */
+  --candle-100:#F6E7D5; --candle-200:#E9CDAC; --candle-300:#DBB287;
+  --candle-400:#C6935F; --candle-500:#A87540; --candle-550:#8C6135; --candle-600:#835A30;
+  --candle-700:#5C3E22;
+
+  /* ---- semantic raw ---- */
+  --sage-300:#8FC7A8; --sage-500:#35784F;
+  --amber-300:#E0BE72; --amber-500:#8A6820;
+  --rose-300:#E58C89; --rose-500:#B33F3B;
+}
+
+/* ============ DARK (default) ============ */
+:root,
+[data-theme="dark"]{
+  color-scheme:dark;
+  --surface:var(--ink-950);
+  --surface-elevated:var(--ink-850);
+  --surface-sunken:#06070A;
+  --surface-overlay:rgba(6,7,10,.72);
+  --surface-inset:var(--ink-900);
+
+  --text-primary:#EDEEF3;      /* 16.98:1 on --surface, 15.44:1 on --surface-elevated */
+  --text-secondary:#A2A9BC;    /* 8.37:1 on --surface, 7.61:1 on --surface-elevated */
+  --text-tertiary:#7B8398;     /* 5.19:1 on --surface, 4.72:1 on --surface-elevated */
+  --text-inverse:var(--ink-950);
+  --text-on-accent:#0B0A18;
+
+  --accent:var(--iris-300);        /* 8.81:1 on --surface, 8.01:1 on --surface-elevated */
+  --accent-strong:var(--iris-400);
+  --accent-muted:rgba(169,168,228,.14);
+  --accent-border:rgba(169,168,228,.34);
+  --accent-2:var(--candle-300);    /* 10.05:1 on --surface, 9.14:1 on --surface-elevated */
+  --accent-2-muted:rgba(219,178,135,.13);
+
+  --border:rgba(255,255,255,.09);
+  --border-strong:rgba(255,255,255,.17);
+  --border-focus:var(--iris-300);
+
+  --success:var(--sage-300); /* 10.21:1 on --surface */ --success-muted:rgba(143,199,168,.14);
+  --warning:var(--amber-300); /* 11.03:1 on --surface */ --warning-muted:rgba(224,190,114,.14);
+  --danger:var(--rose-300); /* 7.91:1 on --surface */ --danger-muted:rgba(229,140,137,.14);
+
+  --card-back:linear-gradient(160deg,#1A1B2E 0%,#12131F 58%,#191A2B 100%); /* @kind color */
+  --card-face:linear-gradient(170deg,#F5F1EA 0%,#EAE3D7 100%); /* @kind color */
+  --card-face-ink:#211E29;
+  --scrim:rgba(4,5,8,.66);
+  --glow-accent:0 0 40px rgba(142,140,216,.28);
+}
+
+/* ============ LIGHT ============ */
+[data-theme="light"]{
+  color-scheme:light;
+  --surface:#FBFAF8;
+  --surface-elevated:#FFFFFF;
+  --surface-sunken:#F1F0EE;
+  --surface-overlay:rgba(255,255,255,.78);
+  --surface-inset:#F4F3F1;
+
+  --text-primary:#191B22;      /* 16.48:1 on --surface, 17.20:1 on --surface-elevated */
+  --text-secondary:#4E5464;    /* 7.25:1 on --surface, 7.56:1 on --surface-elevated */
+  --text-tertiary:#6C7284;     /* 4.60:1 on --surface, 4.80:1 on --surface-elevated */
+  --text-inverse:#FBFAF8;
+  --text-on-accent:#FFFFFF;
+
+  --accent:var(--iris-600);        /* 5.99:1 on --surface, 6.25:1 on --surface-elevated */
+  --accent-strong:var(--iris-700);
+  --accent-muted:rgba(90,86,172,.10);
+  --accent-border:rgba(90,86,172,.28);
+  --accent-2:var(--candle-550);    /* 5.19:1 on --surface, 5.42:1 on --surface-elevated */
+  --accent-2-muted:rgba(140,97,53,.10);
+
+  --border:rgba(18,20,28,.10);
+  --border-strong:rgba(18,20,28,.20);
+  --border-focus:var(--iris-600);
+
+  --success:var(--sage-500); /* 5.10:1 on --surface, 5.32:1 on --surface-elevated */ --success-muted:rgba(53,120,79,.10);
+  --warning:var(--amber-500); /* 4.93:1 on --surface, 5.14:1 on --surface-elevated */ --warning-muted:rgba(138,104,32,.10);
+  --danger:var(--rose-500); /* 5.45:1 on --surface, 5.69:1 on --surface-elevated */ --danger-muted:rgba(179,63,59,.10);
+
+  --card-back:linear-gradient(160deg,#3A3960 0%,#26253F 58%,#333156 100%); /* @kind color */
+  --card-face:linear-gradient(170deg,#FFFFFF 0%,#F4EFE6 100%); /* @kind color */
+  --card-face-ink:#211E29;
+  --scrim:rgba(24,22,30,.34);
+  --glow-accent:0 0 32px rgba(90,86,172,.16);
+}
