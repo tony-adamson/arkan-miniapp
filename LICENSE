@@ -1,0 +1,36 @@
+Copyright (c) 2026 Anton Adamson and Anastasia Adamson. All rights reserved.
+
+This repository and its original contents, including source code, design
+system, design assets, texts, interpretation knowledge base and documentation
+(the "Software"), are proprietary.
+
+No license, express or implied, is granted to any person obtaining access to
+the Software. Without prior written permission from the copyright holders you
+may not use, copy, modify, merge, publish, distribute, sublicense, sell, or
+create derivative works of the Software, in whole or in part.
+
+The Software is published in a public repository so that it can be reviewed,
+including by accelerator and competition organizers and their experts. Viewing
+it, and forking it within the hosting platform to the extent required by the
+platform's terms of service, does not grant any of the rights listed above.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+DAMAGES OR OTHER LIABILITY ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+SOFTWARE OR ITS USE.
+
+-------------------------------------------------------------------------------
+Third-party components
+-------------------------------------------------------------------------------
+
+The following third-party components are not covered by the notice above and
+remain under their own licenses:
+
+- Fonts in landing/site/assets/fonts/ — Manrope, Literata, Cormorant Garamond.
+  Licensed under the SIL Open Font License, Version 1.1; see
+  landing/site/assets/fonts/OFL.txt.
+
+- React, ReactDOM, Babel Standalone and Lucide icons used by
+  design-system/ui_kits/arkan-miniapp/ are loaded from a public CDN at runtime
+  and are not included in this repository. They are distributed by their
+  authors under the MIT License (React, Babel) and the ISC License (Lucide).
