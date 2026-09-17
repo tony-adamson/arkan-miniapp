@@ -9,6 +9,7 @@ import asyncio
 from collections.abc import AsyncIterator, Iterator
 from pathlib import Path
 
+import httpx
 import pytest
 from alembic import command
 from alembic.config import Config
@@ -23,8 +24,11 @@ from sqlalchemy.ext.asyncio import (
 from sqlalchemy.pool import NullPool
 
 from app.config import settings
+from app.db import engine as app_engine
+from app.main import app
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
+TEST_BASE_URL = "https://testserver"
 
 
 def _alembic_config() -> Config:
@@ -82,6 +86,18 @@ def test_database() -> Iterator[None]:
     migrate()
     yield
     asyncio.run(_drop_database())
+
+
+@pytest.fixture
+async def client() -> AsyncIterator[httpx.AsyncClient]:
+    """ASGI-клиент с доменом `APP_ORIGIN`: Secure-cookie уходит только по https."""
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app),
+        base_url=TEST_BASE_URL,
+        headers={"Origin": TEST_BASE_URL},
+    ) as http_client:
+        yield http_client
+    await app_engine.dispose()
 
 
 @pytest.fixture
