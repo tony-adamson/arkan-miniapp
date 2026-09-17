@@ -197,18 +197,6 @@ Runtime preconditions (для фаз):
 - мутации (`POST/PATCH/DELETE`) принимают только `application/json` и `Origin`,
   равный `APP_ORIGIN` (в тестах `https://testserver`), иначе 403 (D19);
 - формат ошибок: `{"error": "<code>", "message": "<текст в тоне GUIDE>"}`; коды — закрытый перечень SOLUTION §9.5 (D21): `unauthorized`, `forbidden`, `not_found`, `conflict`, `validation`, `rate_limited`, `llm_unavailable`, плюс `http_error` — catch-all для ответов фреймворка без предметного кода; новый код вводится только правкой §9.5;
-### 7.1 Форма ответов
-
-Перечислены поля, которые эндпоинт отдаёт наружу. Отсутствующее в §7.1 поле в ответ не попадает.
-
-- **позиция**: `position_number`, `position_name`, `revealed` — всегда. У раскрытой (`revealed: true`) дополнительно: `card_id`, `revealed_at`, `ask_variant`, `interpretation`, `verify_status`, `ask_answer`, `question`, `options`. Четыре последних равны `null`, пока их не заполнит соответствующая фаза (толкование, `verify_status`, вопрос и варианты — фаза 9; `ask_answer` — до ответа пользователя). У нераскрытой позиции ни `card_id`, ни текстов нет.
-- **расклад** (`GET /spreads/{id}`, успешный `POST /spreads`): `id`, `question`, `status` (`active|completed|abandoned`), `created_at`, `category`, `structure_type`, `next_action` (`reveal <N>` | `answer <N>` | `summary` | `done`), `positions` (все позиции), `summary` и `summary_status` — с фазы 10.
-- **строка истории** (`GET /spreads`): `id`, `question`, `status`, `created_at`, `positions` — только раскрытые позиции.
-- **отказ**: `status: "refusal"`, `type`, `text`, `follow_up`. **кризис**: `status: "crisis"`, `text`, `resources`. У обоих нет `id`, и значения `status` не пересекаются со статусами расклада — по ним клиент и различает ответы.
-- **ошибка**: `error` (код из перечня выше) и `message`.
-
-Фаза, которая вводит новый эндпоинт или новое поле, дописывает его в §7.1 сама — файл плана для этого открыт, но только для §7.1 и только перечислением полей, которые она действительно возвращает. Менять семантику, статусы и другие разделы плана фаза не вправе: это остановка по §11.1.
-
 - 404 — чужой или несуществующий ресурс; 409 — нарушение порядка или статуса
   (reveal не первой нераскрытой позиции или при неотвеченной предыдущей; answer
   не в своём окне; reveal/summary расклада не в статусе `active`; сверка без
@@ -220,6 +208,18 @@ Runtime preconditions (для фаз):
   запроса.
 
 Расхождение с `SOLUTION.md` → стоп, `BLOCKED_FOR_SOLUTION_AMENDMENT`.
+
+### 7.1 Форма ответов
+
+Перечислены поля, которые эндпоинт отдаёт наружу. Отсутствующее в §7.1 поле в ответ не попадает.
+
+- **позиция**: `position_number`, `position_name`, `revealed` — всегда. У раскрытой (`revealed: true`) дополнительно: `card_id`, `revealed_at`, `ask_variant`, `interpretation`, `verify_status`, `ask_answer`, `question`, `options`. Четыре последних равны `null`, пока их не заполнит соответствующая фаза (толкование, `verify_status`, вопрос и варианты — фаза 9; `ask_answer` — до ответа пользователя). У нераскрытой позиции ни `card_id`, ни текстов нет.
+- **расклад** (`GET /spreads/{id}`, успешный `POST /spreads`): `id`, `question`, `status` (`active|completed|abandoned`), `created_at`, `category`, `structure_type`, `next_action` (`reveal <N>` | `answer <N>` | `summary` | `done`), `positions` (все позиции), `summary` и `summary_status` — с фазы 10.
+- **строка истории** (`GET /spreads`): `id`, `question`, `status`, `created_at`, `positions` — только раскрытые позиции.
+- **отказ**: `status: "refusal"`, `type`, `text`, `follow_up`. **кризис**: `status: "crisis"`, `text`, `resources`. У обоих нет `id`, и значения `status` не пересекаются со статусами расклада — по ним клиент и различает ответы.
+- **ошибка**: `error` (код из перечня выше) и `message`.
+
+Фаза, которая вводит новый эндпоинт или новое поле, дописывает его в §7.1 сама — файл плана для этого открыт, но только для §7.1 и только перечислением полей, которые она действительно возвращает. Менять семантику, статусы и другие разделы плана фаза не вправе: это остановка по §11.1.
 
 ## 8. Жизненный цикл состояния
 
