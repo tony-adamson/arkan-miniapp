@@ -136,7 +136,7 @@ LLM; воркер ingest; интерфейс эмбеддера с перекл�
 | `.gitignore` | существующий | локальные отчёты | — | нет |
 | `design-system/**`, `landing/**`, `deck/**`, остальное `docs/**` | существующие | только чтение в фазах | SOLUTION §12 | — |
 
-**Estimated LOC net: ~7400**
+**Estimated LOC net: ~8200**
 
 Правило подсчёта LOC для стоп-правила ×2 (для всего плана и для фаз): считаются
 код, тесты, конфиги и скрипты. **Не считаются**: lock-файлы (`uv.lock`,
@@ -272,16 +272,19 @@ Telegram, эмбеддер и реранкер в тестах — поддел�
 **Задачи**:
 1. SQLAlchemy 2 модели ровно по §9.4: `users` (`push_enabled` по умолчанию true), `sessions`, `spreads` (включая `summary_status`), `spread_positions`, `daily_cards` (`checkin_variant`, `checkin_answer`, `checkin_reply`), `events` (тип включает `crisis_shown`), `llm_calls` (шаг включает `checkin`), `fraud_flags`.
 2. Внешние ключи: `spreads`, `daily_cards`, `llm_calls`, `fraud_flags` → `users ON DELETE CASCADE`; `spread_positions` → `spreads ON DELETE CASCADE`; `sessions.user_id` и `events.user_id` → `ON DELETE SET NULL`; `events.session_id` — без FK.
-3. Первая ревизия Alembic; цель `make migrate` (`uv run --project backend --env-file infra/env.test alembic -c backend/alembic.ini upgrade head`); цель `up` после подъёма выполняет `docker compose -f infra/compose.yml --profile full run --rm api alembic upgrade head`.
-4. conftest: БД `arkan_test` — создать → `upgrade head` → отдать → удалить.
+3. Первая ревизия Alembic; цель `make db-create` (создаёт БД из `DATABASE_URL`, если её нет: `CREATE DATABASE` через `docker compose exec -T postgres psql`, идемпотентно); `make migrate` = `db-create`, затем `uv run --project backend --env-file infra/env.test alembic -c backend/alembic.ini upgrade head`.
+4. Порядок в `make up` (SOLUTION §9.8 «миграция до старта нового кода»): `deps-up` → `docker compose … build api` → `docker compose … run --rm api alembic upgrade head` → `docker compose … --profile full up -d --wait` (api стартует уже на актуальной схеме).
+5. conftest: БД `arkan_test` — создать → `upgrade head` → отдать → удалить.
+6. Значения перечислений, не заданные в §9.4, фиксируются здесь: `llm_calls.status` — `ok|error`; `fraud_flags.flag` — только флаги, которые действительно хранятся (`signup_burst|fast_requests|duplicate_question`); `idle` не хранится (он вычисляется вьюхой `v_flagged_users` в фазе 17).
+7. `llm_calls.tokens_in`, `tokens_out`, `cost_usd` — `NOT NULL` без значения по умолчанию: пропущенная запись должна падать, а не превращаться в ноль.
 
-**Проверка фазы**: `make test` → exit 0; тесты: создание каждой сущности; дубль `telegram_id` → IntegrityError; удаление user удаляет его расклады, позиции и дневные карты, оставляет события (`user_id=NULL`) и сессию (`user_id=NULL`); `downgrade base` → `upgrade head` без ошибок; `make smoke` → exit 0 (миграция в контейнере прошла).
+**Проверка фазы**: `make test` → exit 0 (в том числе на машине, где БД `arkan_test` ещё нет); тесты: создание каждой сущности; дубль `telegram_id` → IntegrityError; удаление user удаляет его расклады, позиции и дневные карты, оставляет события (`user_id=NULL`) и сессию (`user_id=NULL`); `downgrade base` → `upgrade head` без ошибок; вставка `llm_calls` без токенов → ошибка (нет значений по умолчанию); `make smoke` → exit 0 (api стартовал после миграции).
 
 **Фокус верификатора**: поля один-в-один с §9.4; каскады по §11.
 
-**Критерий выхода**: миграция накатывается и откатывается.
+**Критерий выхода**: миграция накатывается и откатывается; `alembic revision --autogenerate` на накатанной схеме даёт пустой diff (модели и миграция совпадают).
 
-**Оценка**: ~350 LOC net
+**Оценка**: ~800 LOC net (каркас Alembic ~140, автогенерированная миграция на 8 таблиц ~200, модели ~250, тесты и фикстуры ~230; поправка 18.09 — прежние ~350 не учитывали каркас и генерацию)
 
 ### Фаза 3 `[]` — Сессии, согласие, события, CSRF (неделя 1)
 
@@ -616,7 +619,7 @@ Telegram, эмбеддер и реранкер в тестах — поддел�
 
 **Критерий выхода**: цифры этапа считаются серверно.
 
-**Оценка**: ~350 LOC net
+**Оценка**: ~650 LOC net (миграция с 8 вьюхами — сгенерированного кода нет, но SQL объёмный; поправка 18.09)
 
 ### Фаза 18 `[]` — Фронт: каркас, адаптеры, дизайн-система (неделя 4)
 
@@ -775,7 +778,7 @@ Telegram, эмбеддер и реранкер в тестах — поддел�
 
 1. Нужна новая архитектура, контракт, fallback, поле или эндпоинт вне `SOLUTION.md` → стоп, `BLOCKED_FOR_SOLUTION_AMENDMENT` (кандидат: эксперт требует тему `general` — ASM-7).
 2. Фаза превысила оценку ×2 по LOC (правило подсчёта — §5) или вышла за «Разрешённые файлы» → стоп, `git diff --stat`, вопрос.
-3. План в целом превысил ~7400 LOC net ×2 → стоп.
+3. План в целом превысил ~8200 LOC net ×2 → стоп.
 4. Не выполнено предусловие §5 → стоп с его названием.
 5. Проверка фазы требует ключей, моделей, сервера или сети кроме PyPI/npm/Docker Hub → стоп: это операционный шаг.
 6. Тест нельзя сделать зелёным без ослабления утверждения → стоп, вопрос.
@@ -829,3 +832,10 @@ Telegram, эмбеддер и реранкер в тестах — поддел�
 **17.09.2026 — гейт готовности, раунд 2 (opus, свежий контекст)**: `RESULT: FAIL`, 8 находок (3 блокирующих, все однострочные). Принято всё: критерий выхода фазы 1 через `uv run`; `MAJOR_ONLY=true` в `env.compose.test`; любая ошибка Qdrant → `RagUnavailable` и тест; draw карты дня в одной транзакции и усиленный тест гонки; числовые ожидания сессий, D7 и стоимости; `pip install uv` в Dockerfile; `smoke` останавливает стек; SOLUTION §9.1 и §9.8 приведены к D20 и `deploy.sh`.
 
 Все гейты раунда 2 кроме трёх перечисленных были PASS; блокирующие правки механические и сверены координатором поиском по тексту, третий раунд не запускался. Статус: `READY_FOR_BUILD`.
+
+**18.09.2026 — поправка по итогам фазы 2 (верификация `FAIL reason=scope-x2`)**:
+
+- оценка фазы 2 поднята с ~350 до ~800 LOC net: прежняя не учитывала каркас Alembic и автогенерированную миграцию на 8 таблиц. Код фазы проверен владельцем — лишнего нет, поэтому принят как есть, а не урезан. Оценка фазы 17 поднята с ~350 до ~650 по той же причине, итог плана — ~8200;
+- закрыт пробел: `make db-create` (создание БД `arkan_test`, идемпотентно) — без него `make test` падал на чистой машине;
+- закрыт пробел: в `make up` миграция выполняется до старта api (SOLUTION §9.8), прежняя формулировка запускала её после `up -d --wait`;
+- зафиксированы значения перечислений `llm_calls.status` и `fraud_flags.flag` (без `idle` — он вычисляется вьюхой фазы 17) и запрет значений по умолчанию у токенов и стоимости.
