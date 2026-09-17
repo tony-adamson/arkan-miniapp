@@ -448,6 +448,11 @@ REST API (19 эндпоинтов): `POST /auth/anonymous`, `POST /auth/telegram
 `PATCH /profile/settings`. Плюс внутренний `/metrics`, наружу не публикуется.
 Идемпотентность `POST /spreads` — заголовок `Idempotency-Key`, ключ хранится в
 Redis с TTL 10 мин.
+Формат ошибки — `{"error": "<code>", "message": "<текст в тоне GUIDE>"}`;
+перечень кодов закрыт (фронт разбирает их по нему): `unauthorized` (401),
+`forbidden` (403 — нет согласия, не-JSON или чужой Origin), `not_found` (404),
+`conflict` (409 — нарушение порядка или статуса), `validation` (422),
+`rate_limited` (429 — лимит `SPREADS_PER_DAY`), `llm_unavailable` (503).
 Все мутации пишут события — идемпотентный повтор (reveal, summary, draw,
 checkin, consent) событие не пишет, чтобы не удваивать обращения; `POST
 /auth/link/code` возвращает код и готовую ссылку `https://t.me/<BOT_USERNAME>?start=link_<code>`; ошибки в тонах GUIDE («Связь прервалась. Расклад
@@ -605,6 +610,7 @@ D1/D7, стоимость на DAU, p95 reveal. SQL-вьюхи метрик = е
 | D18 | Лимит `SPREADS_PER_DAY` (5) на пользователя за сутки МСК | NFR-2, R10 | открытый веб-вход позволяет сжечь LLM-бюджет | 429 сверх лимита | конфиг |
 | D19 | Cookie `SameSite=None; Secure; Partitioned` + мутации только JSON с `Origin` своего домена | REQ-13 | Telegram Web открывает Mini App в стороннем iframe, `Lax`-cookie там не уходит | CSRF закрыт проверкой Content-Type и Origin | заголовок `Authorization: tma <initData>` для Mini App |
 | D20 | Площадка MVP — сервер в РФ; Telegram Bot API через SOCKS-туннель на fornex-de (`TELEGRAM_PROXY`, `TELEGRAM_API_BASE`) | CON-3, DEC-1 | из РФ api.telegram.org напрямую недоступен (опрос personal-ru 17.09) | бот зависит от fornex (R11) | прямой доступ, если площадка сменится |
+| D21 | Закрытый перечень кодов ошибок API (§9.5): `unauthorized|forbidden|not_found|conflict|validation|rate_limited|llm_unavailable` | REQ-13, тон GUIDE | фазе 6 пришлось изобретать коды, которых не было ни в одном контракте (ревью 18.09) | фронт разбирает ответы по фиксированному списку | добавление кода — правка §9.5 |
 
 ## 14. Риски и меры
 
@@ -703,7 +709,7 @@ D1/D7, стоимость на DAU, p95 reveal. SQL-вьюхи метрик = е
 
 ## 18. Готовность
 
-Гейты пройдены: решения закрыты (Q7–Q13 интервью + D1–D20; ASM-7 ждёт эксперта), операции и состояния
+Гейты пройдены: решения закрыты (Q7–Q13 интервью + D1–D21; ASM-7 ждёт эксперта), операции и состояния
 определены (§10–11), минимализма-гейт пройден (§5), трассируемость REQ→дизайн→
 проверка полная (§15), юридический риск принят явно (R9), UNK-1 закрыт негативно, площадка
 развёртывания — сервер в РФ, размер по замеру (DEC-1, D20), future work вне скоупа. Статус: **`READY_FOR_PLANF3`**.
