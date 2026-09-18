@@ -4,7 +4,7 @@ COMPOSE := docker compose -f infra/compose.yml
 UV := uv run --project backend
 ENV_FILE := infra/env.test
 
-.PHONY: deps-up deps-down db-create up down migrate lint typecheck test smoke
+.PHONY: deps-up deps-down db-create up down migrate lint typecheck test smoke validate-base
 
 deps-up:
 	$(COMPOSE) up -d --wait --wait-timeout 180 postgres redis qdrant
@@ -49,6 +49,13 @@ typecheck:
 
 test: db-create
 	$(UV) --env-file $(ENV_FILE) pytest backend/tests
+
+# Волна эксперта: CSV из Google Sheets -> отчёт -> YAML базы (CON-5). Отчёт
+# печатается построчно; exit 1, пока в волне есть ошибки. Пустые CSV/OUT — не
+# опечатка: без OUT `Path("")` — это `.`, и YAML уехал бы в корень репозитория.
+validate-base:
+	@[ -n "$(CSV)" ] && [ -n "$(OUT)" ] || { echo "usage: make validate-base CSV=<csv_dir> OUT=<out_dir>"; exit 2; }
+	PYTHONPATH=backend $(UV) python -m tools.validate_base "$(CSV)" "$(OUT)"
 
 smoke:
 	@set -e; \

@@ -6,14 +6,18 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import current_session, require_json_same_origin
-from app.db import get_session
+from app.api.errors import api_error
+from app.db import get_session, is_lock_timeout
 from app.models import Event, Session, User
 from app.msk import msk_now
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+BUSY_SESSION = "Согласие уже сохраняется. Секунда — и всё готово."
 
 # 5 случайных байт → ровно 8 символов base32 без padding (REQ-15).
 PUBLIC_REF_BYTES = 5
@@ -54,6 +58,16 @@ async def consent(
 
     Повтор — тот же user, без новой строки и без события (идемпотентность §9.5).
     """
+    # Строка сессии блокируется до конца транзакции: два одновременных согласия
+    # иначе создают двух user, и один остаётся без сессии навсегда. Ожидание
+    # ограничено `lock_timeout` соединения — дольше него клиент получает 409.
+    try:
+        await db.refresh(session, with_for_update=True)
+    except DBAPIError as error:
+        if not is_lock_timeout(error):
+            raise
+        await db.rollback()
+        api_error(409, "conflict", BUSY_SESSION)
     if session.user_id is not None:
         user = await db.get(User, session.user_id)
         if user is not None:
