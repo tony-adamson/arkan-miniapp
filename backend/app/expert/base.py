@@ -97,6 +97,11 @@ def get_spread_for_category(category: str) -> dict[str, Any]:
     return base.spreads[spread_id]
 
 
+def get_spread(spread_id: str) -> dict[str, Any]:
+    """Расклад по его id вместе с позициями. Неизвестный id — `KeyError`."""
+    return _base().spreads[spread_id]
+
+
 def get_refusal(refusal_type: str) -> dict[str, Any]:
     """Текст отказа и `follow_up` по типу (REQ-3)."""
     return _base().refusals[refusal_type]

@@ -221,3 +221,15 @@ def test_empty_predictions_is_error(
     assert code == 1, out
     assert re.search(r"^stop_patterns:1: E_CONFIG: ", out, re.MULTILINE)
     assert not (tmp_path / "out").exists()
+
+
+def test_two_spreads_on_one_category(
+    capsys: pytest.CaptureFixture[str], tmp_path: Path, wave: Path
+) -> None:
+    """Вторая тема-дубль потерялась бы в индексе базы — это ошибка волны (O31/F8)."""
+    _update(wave, "spreads", {"spread_id": "two_voices"}, "category", "choice")
+
+    code, out = _run(wave, tmp_path / "out", capsys)
+
+    assert code == 1
+    assert re.search(r"^spreads:\d+: E_ROWS: тема «choice» уже занята", out, re.MULTILINE)
