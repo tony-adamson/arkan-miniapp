@@ -46,7 +46,7 @@ async def test_forbidden_event_type_rejected(client: httpx.AsyncClient) -> None:
     response = await client.post("/events", json={"type": "card_revealed", "source": "x"})
 
     assert response.status_code == 422
-    assert response.json()["error"] == "validation_error"
+    assert response.json()["error"] == "validation"
 
 
 async def test_non_json_content_type_rejected(client: httpx.AsyncClient) -> None:
