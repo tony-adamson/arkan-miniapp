@@ -8,6 +8,7 @@
 import asyncio
 from collections.abc import AsyncIterator, Iterator
 from pathlib import Path
+from urllib.parse import urlparse
 
 import httpx
 import pytest
@@ -26,6 +27,7 @@ from sqlalchemy.pool import NullPool
 from app.config import settings
 from app.db import engine as app_engine
 from app.main import app
+from app.redis import close_redis, get_redis
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 TEST_BASE_URL = "https://testserver"
@@ -86,6 +88,20 @@ def test_database() -> Iterator[None]:
     migrate()
     yield
     asyncio.run(_drop_database())
+
+
+@pytest.fixture(autouse=True)
+async def redis_flush() -> AsyncIterator[None]:
+    """Тестовая база Redis (`/1`) пуста перед каждым тестом (фаза 6).
+
+    Клиент закрывается после теста: pytest-asyncio даёт функции свой event loop.
+    """
+    index = urlparse(settings.redis_url).path
+    if index != "/1":
+        raise RuntimeError(f"тестовая база Redis должна быть /1, а не {index!r}")
+    await get_redis().flushdb()
+    yield
+    await close_redis()
 
 
 @pytest.fixture

@@ -9,6 +9,7 @@ from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from app.api.errors import register_error_handlers
 from app.api.routes_auth import router as auth_router
 from app.api.routes_events import router as events_router
+from app.api.routes_spreads import router as spreads_router
 from app.auth.sessions import SessionMiddleware
 
 
@@ -23,6 +24,7 @@ register_error_handlers(app)
 app.add_middleware(SessionMiddleware)
 app.include_router(auth_router)
 app.include_router(events_router)
+app.include_router(spreads_router)
 
 
 @app.get("/healthz")

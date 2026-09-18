@@ -4,14 +4,14 @@ import httpx
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.sessions import SESSION_COOKIE
+from app.auth.sessions import SESSION_COOKIE, parse_session_cookie
 from app.models import Event
 
 
 def session_id(client: httpx.AsyncClient) -> int:
-    value = client.cookies.get(SESSION_COOKIE)
+    value = parse_session_cookie(client.cookies.get(SESSION_COOKIE))
     assert value is not None
-    return int(value)
+    return value
 
 
 async def event_payload(db_session: AsyncSession, sid: int, type_: str) -> dict[str, object] | None:
@@ -46,7 +46,7 @@ async def test_forbidden_event_type_rejected(client: httpx.AsyncClient) -> None:
     response = await client.post("/events", json={"type": "card_revealed", "source": "x"})
 
     assert response.status_code == 422
-    assert response.json()["error"] == "validation_error"
+    assert response.json()["error"] == "validation"
 
 
 async def test_non_json_content_type_rejected(client: httpx.AsyncClient) -> None:

@@ -38,5 +38,5 @@ def register_error_handlers(app: FastAPI) -> None:
     ) -> JSONResponse:
         return JSONResponse(
             status_code=422,
-            content=error_content("validation_error", VALIDATION_MESSAGE),
+            content=error_content("validation", VALIDATION_MESSAGE),
         )
