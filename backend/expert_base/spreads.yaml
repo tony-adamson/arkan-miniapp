@@ -1,0 +1,15 @@
+- spread_id: three_threads
+  name: Три нити
+  category: choice
+  when_to_use: Вопрос о затянувшейся неопределённости, когда нужно понять, что происходит и куда это движется.
+  positions_count: 3
+- spread_id: two_voices
+  name: Два голоса
+  category: relationships
+  when_to_use: 'ТЕСТОВЫЕ ДАННЫЕ: шаблонный расклад про отношения и то, что в них происходит.'
+  positions_count: 3
+- spread_id: work_axis
+  name: Ось дела
+  category: work
+  when_to_use: 'ТЕСТОВЫЕ ДАННЫЕ: шаблонный расклад про работу и ближайшие решения в деле.'
+  positions_count: 3
