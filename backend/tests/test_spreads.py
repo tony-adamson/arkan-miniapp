@@ -6,14 +6,17 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import timedelta
 
 import httpx
+import pytest
 from redis.asyncio import Redis
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.engine.deck import ask_variant, draw
+from app.expert import base as expert_base
 from app.main import app
 from app.models import Event, Spread
 from app.redis import get_redis
@@ -326,3 +329,78 @@ async def test_next_action_reaches_summary_and_done(
     await db_session.commit()
 
     assert (await client.get(f"/spreads/{spread_id}")).json()["next_action"] == "done"
+
+
+async def test_parallel_creates_do_not_exceed_daily_limit(
+    client: httpx.AsyncClient, db_session: AsyncSession
+) -> None:
+    """Шесть одновременных запросов при лимите 5 создают ровно 5 (O31/F4)."""
+    user = await factories.consented_user(client, db_session)
+
+    responses = await asyncio.gather(
+        *[create(client, question=f"Одновременный вопрос {index} про дело") for index in range(6)]
+    )
+
+    codes = sorted(response.status_code for response in responses)
+    assert codes == [201, 201, 201, 201, 201, 429]
+    assert await spread_count(db_session, user.id) == 5
+
+
+async def test_failed_insert_releases_idempotency_key(
+    client: httpx.AsyncClient, db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Упавшая вставка снимает резерв: повтор не ждёт TTL и не получает 409 (O31/F5)."""
+    user = await factories.consented_user(client, db_session)
+    key = f"spread:idem:{user.id}:retry"
+
+    async def boom(*args: object, **kwargs: object) -> Spread:
+        raise RuntimeError("вставка не дошла до коммита")
+
+    monkeypatch.setattr(service, "_insert_spread", boom)
+    with pytest.raises(RuntimeError):
+        await create(client, key="retry")
+    assert await get_redis().get(key) is None
+
+    monkeypatch.undo()
+    retry = await create(client, key="retry")
+
+    assert retry.status_code == 201
+    assert await spread_count(db_session, user.id) == 1
+
+
+async def test_position_names_follow_stored_structure(
+    client: httpx.AsyncClient, db_session: AsyncSession
+) -> None:
+    """Имена позиций берутся по `structure_type` расклада, а не по теме (O31/F6)."""
+    await factories.consented_user(client, db_session)
+    spread_id = (await create(client)).json()["id"]
+    await db_session.execute(
+        update(Spread).where(Spread.id == spread_id).values(structure_type="two_voices")
+    )
+    await db_session.commit()
+
+    body = (await client.get(f"/spreads/{spread_id}")).json()
+
+    expected = {
+        int(item["position_number"]): item["position_name"]
+        for item in expert_base.get_spread("two_voices")["positions"]
+    }
+    assert {
+        item["position_number"]: item["position_name"] for item in body["positions"]
+    } == expected
+
+
+async def test_answer_length_is_bounded(
+    client: httpx.AsyncClient, db_session: AsyncSession
+) -> None:
+    """Ответ длиннее 500 символов не доходит до базы (O31/F7)."""
+    await factories.consented_user(client, db_session)
+    spread_id = (await create(client)).json()["id"]
+    await factories.reveal_position(db_session, spread_id, 1)
+
+    too_long = await answer(client, spread_id, 1, "я" * 501)
+    empty = await answer(client, spread_id, 1, "")
+
+    assert too_long.status_code == 422 and too_long.json()["error"] == "validation"
+    assert empty.status_code == 422
+    assert (await answer(client, spread_id, 1, "я" * 500)).status_code == 200

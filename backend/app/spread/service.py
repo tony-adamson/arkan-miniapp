@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 from redis.exceptions import RedisError
-from sqlalchemy import func, select
+from sqlalchemy import BigInteger, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.errors import api_error
@@ -56,6 +56,9 @@ async def create_spread(
         if replay is not None:
             return replay
 
+    # Подсчёт и вставку одного пользователя нельзя разносить: два параллельных
+    # запроса видели бы одно и то же число и оба прошли бы лимит (D18).
+    await _lock_user_spreads(db, user.id)
     if await count_today_spreads(db, user.id) >= settings.spreads_per_day:
         api_error(429, "rate_limited", LIMIT_MESSAGE)
 
@@ -65,10 +68,27 @@ async def create_spread(
         if replay is not None:
             return replay
 
-    spread = await _insert_spread(db, user, question)
+    try:
+        spread = await _insert_spread(db, user, question)
+    except Exception:
+        # Иначе ключ остаётся `pending` до конца TTL и повтор получает 409,
+        # хотя расклада нет.
+        if key is not None:
+            await _redis_release(key)
+        raise
     if key is not None:
         await _redis_store(key, spread.id)
     return spread
+
+
+async def _lock_user_spreads(db: AsyncSession, user_id: int) -> None:
+    """Advisory-блокировка лимита раскладов пользователя до конца транзакции.
+
+    Ключ — сам `users.id`: других advisory-блокировок в приложении нет, а второй
+    сценарий обязан взять себе своё пространство (например, парный вариант
+    `pg_advisory_xact_lock(int4, int4)`).
+    """
+    await db.execute(select(func.pg_advisory_xact_lock(cast(user_id, BigInteger))))
 
 
 async def _replayed(db: AsyncSession, user: User, key: str) -> Spread | None:
@@ -214,6 +234,14 @@ async def _redis_claim(key: str) -> bool:
     except (RedisError, OSError):
         return True
     return bool(claimed)
+
+
+async def _redis_release(key: str) -> None:
+    """Снимает резерв после неудачной вставки: повтор не должен ждать TTL."""
+    try:
+        await get_redis().delete(key)
+    except (RedisError, OSError):
+        return
 
 
 async def _redis_store(key: str, spread_id: int) -> None:

@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     qdrant_url: str
     qdrant_collection: str
     daily_secret: str
+    # Подпись cookie сессии (D19); смена секрета разлогинивает всех гостей.
+    session_secret: str
     spreads_per_day: int = 5
     major_only: bool = False
 

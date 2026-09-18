@@ -472,8 +472,21 @@ def _check_row_counts(report: Report, rows: dict[str, list[tuple[int, Row]]]) ->
         count = len(rows[sheet])
         if not low <= count <= high:
             report.add(sheet, 1, "E_ROWS", f"строк {count}, ожидается {low}–{high}")
-    categories = {row["category"] for _, row in rows["spreads"]}
-    missing = [name for name in CATEGORIES if name not in categories]
+    # На тему — ровно один расклад: второй молча потерялся бы в индексе базы
+    # (`app/expert/base.py`), поэтому ловим его здесь, а не на загрузке.
+    seen: dict[str, int] = {}
+    for line, row in rows["spreads"]:
+        category = row["category"]
+        if category in seen:
+            report.add(
+                "spreads",
+                line,
+                "E_ROWS",
+                f"тема «{category}» уже занята строкой {seen[category]}",
+            )
+        else:
+            seen[category] = line
+    missing = [name for name in CATEGORIES if name not in seen]
     if missing:
         report.add("spreads", 1, "E_ROWS", f"нет тем: {', '.join(missing)}")
 

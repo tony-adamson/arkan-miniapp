@@ -1,21 +1,29 @@
 """Сессии гостя, cookie D19 и создание user по согласию (фаза 3)."""
 
+import asyncio
 from datetime import UTC, datetime
 
 import httpx
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.sessions import SESSION_COOKIE, SESSION_MAX_AGE
+from app.auth.sessions import (
+    SESSION_COOKIE,
+    SESSION_MAX_AGE,
+    parse_session_cookie,
+    session_cookie_value,
+)
+from app.main import app
 from app.models import Event, Session, User
 
 PAST = datetime(2020, 1, 1, tzinfo=UTC)
+TEST_BASE_URL = "https://testserver"
 
 
 def session_id(client: httpx.AsyncClient) -> int:
-    value = client.cookies.get(SESSION_COOKIE)
+    value = parse_session_cookie(client.cookies.get(SESSION_COOKIE))
     assert value is not None
-    return int(value)
+    return value
 
 
 async def session_count(db_session: AsyncSession) -> int:
@@ -40,7 +48,8 @@ async def test_first_request_creates_guest_session_row(
     client: httpx.AsyncClient, db_session: AsyncSession
 ) -> None:
     response = await client.post("/auth/anonymous", json={})
-    sid = int(response.cookies[SESSION_COOKIE])
+    sid = parse_session_cookie(response.cookies[SESSION_COOKIE])
+    assert sid is not None
 
     count = await db_session.scalar(
         select(func.count()).select_from(Session).where(Session.id == sid)
@@ -53,7 +62,8 @@ async def test_second_request_reuses_session(
     client: httpx.AsyncClient, db_session: AsyncSession
 ) -> None:
     first = await client.post("/auth/anonymous", json={})
-    sid = int(first.cookies[SESSION_COOKIE])
+    sid = parse_session_cookie(first.cookies[SESSION_COOKIE])
+    assert sid is not None
     sessions_before = await session_count(db_session)
 
     second = await client.post("/auth/anonymous", json={})
@@ -149,3 +159,83 @@ async def test_second_app_open_does_not_overwrite_first_source(
         select(User.first_source).where(User.public_ref == public_ref)
     )
     assert first_source == "source_a"
+
+
+async def test_forged_cookie_does_not_open_another_session(
+    client: httpx.AsyncClient, db_session: AsyncSession
+) -> None:
+    """Номер чужой сессии без подписи не даёт в неё войти (O31/F1)."""
+    await client.post("/auth/anonymous", json={})
+    victim = session_id(client)
+    await client.post("/auth/consent", json={})
+
+    forged = httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app),
+        base_url=TEST_BASE_URL,
+        headers={"Origin": TEST_BASE_URL},
+        cookies={SESSION_COOKIE: str(victim)},
+    )
+    async with forged:
+        response = await forged.post("/auth/anonymous", json={})
+        assert response.status_code == 200
+        issued = parse_session_cookie(response.cookies[SESSION_COOKIE])
+        assert issued is not None and issued != victim
+
+    user_id = await db_session.scalar(select(Session.user_id).where(Session.id == victim))
+    assert user_id is not None
+
+
+async def test_tampered_signature_is_rejected(client: httpx.AsyncClient) -> None:
+    """Подпись от другого номера не проходит проверку (O31/F1)."""
+    await client.post("/auth/anonymous", json={})
+    sid = session_id(client)
+    stolen = session_cookie_value(sid).partition(".")[2]
+
+    assert parse_session_cookie(f"{sid + 1}.{stolen}") is None
+    assert parse_session_cookie(str(sid)) is None
+    assert parse_session_cookie(f"{sid}.") is None
+
+
+async def test_digit_like_characters_in_cookie_issue_new_session(
+    client: httpx.AsyncClient,
+) -> None:
+    """`isdigit` пропускал «²» и «٣», а `int()` на них падал 500 (O31/F2)."""
+    assert parse_session_cookie("٣.подпись") is None
+    assert parse_session_cookie("².подпись") is None
+
+    # Заголовок cookie передаётся байтами latin-1: «²» — это ровно то, что
+    # браузер может донести до сервера, в отличие от многобайтных цифр.
+    forged = httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app),
+        base_url=TEST_BASE_URL,
+        headers=[
+            (b"origin", TEST_BASE_URL.encode()),
+            (b"cookie", f"{SESSION_COOKIE}=²".encode("latin-1")),
+        ],
+    )
+    async with forged:
+        response = await forged.post("/auth/anonymous", json={})
+
+    assert response.status_code == 200
+    assert parse_session_cookie(response.cookies[SESSION_COOKIE]) is not None
+
+
+async def test_parallel_consent_creates_one_user(
+    client: httpx.AsyncClient, db_session: AsyncSession
+) -> None:
+    """Два одновременных согласия одной сессии — один user (O31/F3)."""
+    await client.post("/auth/anonymous", json={})
+    sid = session_id(client)
+    # Строки `users` живут до конца прогона, поэтому считаем прирост.
+    users_before = await db_session.scalar(select(func.count()).select_from(User))
+
+    first, second = await asyncio.gather(
+        client.post("/auth/consent", json={}),
+        client.post("/auth/consent", json={}),
+    )
+
+    assert first.status_code == 200 and second.status_code == 200
+    assert first.json()["public_ref"] == second.json()["public_ref"]
+    users_after = await db_session.scalar(select(func.count()).select_from(User))
+    assert users_after == (users_before or 0) + 1
+    assert await db_session.scalar(select(Session.user_id).where(Session.id == sid)) is not None

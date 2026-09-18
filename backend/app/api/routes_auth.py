@@ -54,6 +54,9 @@ async def consent(
 
     Повтор — тот же user, без новой строки и без события (идемпотентность §9.5).
     """
+    # Строка сессии блокируется до конца транзакции: два одновременных согласия
+    # иначе создают двух user, и один остаётся без сессии навсегда.
+    await db.refresh(session, with_for_update=True)
     if session.user_id is not None:
         user = await db.get(User, session.user_id)
         if user is not None:
