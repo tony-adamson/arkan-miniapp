@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.errors import api_error
 from app.config import settings
+from app.db import is_lock_timeout
 from app.engine.deck import ask_variant, draw, new_seed
 from app.events.writer import write_event
 from app.expert import base as expert_base
@@ -24,7 +25,6 @@ from app.redis import get_redis
 CATEGORY = "choice"
 IDEMPOTENCY_TTL_S = 600  # §9.5: ключ живёт 10 минут
 PENDING = "pending"
-LOCK_TIMEOUT_SQLSTATE = "55P03"  # PG: ожидание блокировки оборвано `lock_timeout`
 
 LIMIT_MESSAGE = (
     "На сегодня лимит раскладов исчерпан. Прежние можно продолжить, а новый спросим завтра."
@@ -99,7 +99,7 @@ async def _lock_user_spreads(db: AsyncSession, user_id: int) -> None:
     try:
         await db.execute(select(func.pg_advisory_xact_lock(user_id)))
     except DBAPIError as error:
-        if getattr(error.orig, "sqlstate", None) != LOCK_TIMEOUT_SQLSTATE:
+        if not is_lock_timeout(error):
             raise
         await db.rollback()
         api_error(409, "conflict", PENDING_MESSAGE)

@@ -5,7 +5,8 @@ from datetime import UTC, datetime
 
 import httpx
 from sqlalchemy import func, select, update
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.pool import NullPool
 
 from app.auth.sessions import (
     SESSION_COOKIE,
@@ -13,6 +14,7 @@ from app.auth.sessions import (
     parse_session_cookie,
     session_cookie_value,
 )
+from app.config import settings
 from app.main import app
 from app.models import Event, Session, User
 
@@ -254,3 +256,21 @@ async def test_parallel_consent_creates_one_user(
     users_after = await db_session.scalar(select(func.count()).select_from(User))
     assert users_after == (users_before or 0) + 1
     assert await db_session.scalar(select(Session.user_id).where(Session.id == sid)) is not None
+
+
+async def test_consent_lock_timeout_answers_conflict(
+    client: httpx.AsyncClient, db_session: AsyncSession
+) -> None:
+    """Занятая строка сессии даёт 409 в конверте §7, а не голый 500 (ревью PR #7)."""
+    await client.post("/auth/anonymous", json={})
+    sid = session_id(client)
+    holder = create_async_engine(settings.database_url, poolclass=NullPool)
+    async with holder.connect() as connection:
+        await connection.execute(select(Session).where(Session.id == sid).with_for_update())
+
+        response = await client.post("/auth/consent", json={})
+
+        assert response.status_code == 409
+        assert response.json()["error"] == "conflict"
+    await holder.dispose()
+    assert await db_session.scalar(select(Session.user_id).where(Session.id == sid)) is None

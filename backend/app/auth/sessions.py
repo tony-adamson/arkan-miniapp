@@ -12,12 +12,13 @@ Mini App во вложенном iframe, где нужен `SameSite=None; Secur
 import base64
 import hmac
 
+from sqlalchemy.exc import DBAPIError
 from starlette.datastructures import MutableHeaders
 from starlette.requests import Request
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from app.config import settings
-from app.db import SessionLocal
+from app.db import SessionLocal, is_lock_timeout
 from app.models import Session
 from app.msk import msk_now
 
@@ -78,8 +79,18 @@ async def resolve_session(cookie: str | None) -> tuple[int, bool]:
             await db.commit()
             return session.id, True
         session.last_seen = msk_now()
-        await db.commit()
-        return session.id, False
+        # id снимаем до коммита: откат разворачивает объект, и чтение поля
+        # после него ушло бы в базу уже за пределами async-контекста.
+        resolved_id = session.id
+        try:
+            await db.commit()
+        except DBAPIError as error:
+            if not is_lock_timeout(error):
+                raise
+            # `last_seen` — мягкая отметка: строку держит чужая транзакция
+            # (например, согласие той же сессии), и ронять из-за неё запрос нельзя.
+            await db.rollback()
+        return resolved_id, False
 
 
 class SessionMiddleware:
