@@ -7,10 +7,12 @@ from __future__ import annotations
 
 from redis.exceptions import RedisError
 from sqlalchemy import func, select
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.errors import api_error
 from app.config import settings
+from app.db import is_lock_timeout
 from app.engine.deck import ask_variant, draw, new_seed
 from app.events.writer import write_event
 from app.expert import base as expert_base
@@ -56,6 +58,10 @@ async def create_spread(
         if replay is not None:
             return replay
 
+    # Подсчёт и вставку одного пользователя нельзя разносить: два параллельных
+    # запроса видели бы одно и то же число и оба прошли бы лимит (D18).
+    await _lock_user_spreads(db, user.id)
+
     if await count_today_spreads(db, user.id) >= settings.spreads_per_day:
         api_error(429, "rate_limited", LIMIT_MESSAGE)
 
@@ -65,10 +71,38 @@ async def create_spread(
         if replay is not None:
             return replay
 
-    spread = await _insert_spread(db, user, question)
+    try:
+        spread = await _insert_spread(db, user, question)
+    except Exception:
+        # Сначала откат: иначе упавшая транзакция и блокировка лимита держатся
+        # ещё и на время обращения к Redis.
+        await db.rollback()
+        # Иначе ключ остаётся `pending` до конца TTL и повтор получает 409,
+        # хотя расклада нет.
+        if key is not None:
+            await _redis_release(key)
+        raise
     if key is not None:
         await _redis_store(key, spread.id)
     return spread
+
+
+async def _lock_user_spreads(db: AsyncSession, user_id: int) -> None:
+    """Advisory-блокировка лимита раскладов пользователя до конца транзакции.
+
+    Ключ — сам `users.id`: других advisory-блокировок в приложении нет, а второй
+    сценарий обязан взять себе своё пространство (например, парный вариант
+    `pg_advisory_xact_lock(int4, int4)`). Ожидание ограничено `lock_timeout`
+    соединения (`app/db.py`): дольше него запрос не держит соединение пула, а
+    получает 409 — расклад этого пользователя уже создаётся.
+    """
+    try:
+        await db.execute(select(func.pg_advisory_xact_lock(user_id)))
+    except DBAPIError as error:
+        if not is_lock_timeout(error):
+            raise
+        await db.rollback()
+        api_error(409, "conflict", PENDING_MESSAGE)
 
 
 async def _replayed(db: AsyncSession, user: User, key: str) -> Spread | None:
@@ -214,6 +248,14 @@ async def _redis_claim(key: str) -> bool:
     except (RedisError, OSError):
         return True
     return bool(claimed)
+
+
+async def _redis_release(key: str) -> None:
+    """Снимает резерв после неудачной вставки: повтор не должен ждать TTL."""
+    try:
+        await get_redis().delete(key)
+    except (RedisError, OSError):
+        return
 
 
 async def _redis_store(key: str, spread_id: int) -> None:

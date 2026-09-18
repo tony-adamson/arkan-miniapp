@@ -31,7 +31,9 @@ class AnswerIn(BaseModel):
     """Ответ на уточняющий вопрос позиции (REQ-7)."""
 
     position: int = Field(ge=1)
-    answer: str
+    # Верхняя граница как у вопроса: свободный текст ответа идёт в промпт
+    # толкования (фаза 9), и его длину нельзя оставлять на клиента.
+    answer: str = Field(min_length=1, max_length=500)
 
 
 @router.post("", status_code=201, dependencies=[Depends(require_json_same_origin)])
@@ -139,8 +141,16 @@ def _position_view(position: SpreadPosition, names: dict[int, str]) -> dict[str,
 
 
 def _position_names(spread: Spread) -> dict[int, str]:
-    """Названия позиций из структуры базы: в JSON их не отдаёт клиент."""
-    structure = expert_base.get_spread_for_category(spread.category)
+    """Названия позиций той структуры, по которой расклад создан.
+
+    Тема расклада могла с тех пор переехать на другую структуру, поэтому имена
+    берём по сохранённому `structure_type`; если база его больше не знает —
+    остаётся структура темы, номера позиций в ней те же.
+    """
+    try:
+        structure = expert_base.get_spread(spread.structure_type)
+    except KeyError:
+        structure = expert_base.get_spread_for_category(spread.category)
     return {
         int(item["position_number"]): str(item["position_name"]) for item in structure["positions"]
     }

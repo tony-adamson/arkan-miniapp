@@ -10,7 +10,7 @@ import httpx
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.sessions import SESSION_COOKIE
+from app.auth.sessions import SESSION_COOKIE, parse_session_cookie
 from app.models import Session, SpreadPosition, User
 from app.msk import msk_now
 
@@ -19,9 +19,9 @@ async def consented_user(client: httpx.AsyncClient, db: AsyncSession) -> User:
     """Создаёт сессию и user через API, возвращает строку `users`."""
     await client.post("/auth/anonymous", json={})
     await client.post("/auth/consent", json={})
-    cookie = client.cookies.get(SESSION_COOKIE)
-    assert cookie is not None
-    session = await db.get(Session, int(cookie))
+    session_id = parse_session_cookie(client.cookies.get(SESSION_COOKIE))
+    assert session_id is not None
+    session = await db.get(Session, session_id)
     assert session is not None and session.user_id is not None
     user = await db.get(User, session.user_id)
     assert user is not None
