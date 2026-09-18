@@ -472,8 +472,8 @@ def _check_row_counts(report: Report, rows: dict[str, list[tuple[int, Row]]]) ->
         count = len(rows[sheet])
         if not low <= count <= high:
             report.add(sheet, 1, "E_ROWS", f"строк {count}, ожидается {low}–{high}")
-    # На тему — ровно один расклад: второй молча потерялся бы в индексе базы
-    # (`app/expert/base.py`), поэтому ловим его здесь, а не на загрузке.
+    # На тему — ровно один расклад. Загрузчик базы (`app/expert/base.py`) на
+    # дубле падает, но уже в рантайме и без номера строки — волну ловим здесь.
     seen: dict[str, int] = {}
     for line, row in rows["spreads"]:
         category = row["category"]

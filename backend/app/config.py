@@ -7,7 +7,7 @@
 
 from typing import Literal
 
-from pydantic import model_validator
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -19,12 +19,15 @@ class Settings(BaseSettings):
     database_url: str
     db_pool_size: int = 20
     db_max_overflow: int = 20
+    # Ожидание блокировки в PG: без границы запрос висит вечно и держит соединение.
+    db_lock_timeout_ms: int = 3000
     redis_url: str
     qdrant_url: str
     qdrant_collection: str
     daily_secret: str
     # Подпись cookie сессии (D19); смена секрета разлогинивает всех гостей.
-    session_secret: str
+    # Пустой секрет сделал бы подпись публично вычислимой, поэтому длина обязательна.
+    session_secret: str = Field(min_length=16)
     spreads_per_day: int = 5
     major_only: bool = False
 

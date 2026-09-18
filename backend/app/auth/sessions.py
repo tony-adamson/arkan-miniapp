@@ -11,7 +11,6 @@ Mini App во вложенном iframe, где нужен `SameSite=None; Secur
 
 import base64
 import hmac
-from hashlib import sha256
 
 from starlette.datastructures import MutableHeaders
 from starlette.requests import Request
@@ -31,7 +30,7 @@ MAX_ID_DIGITS = 19
 
 
 def _signature(session_id: int) -> str:
-    digest = hmac.new(settings.session_secret.encode(), str(session_id).encode(), sha256).digest()
+    digest = hmac.digest(settings.session_secret.encode(), str(session_id).encode(), "sha256")
     return base64.urlsafe_b64encode(digest).decode().rstrip("=")
 
 

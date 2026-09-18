@@ -10,6 +10,9 @@ engine = create_async_engine(
     settings.database_url,
     pool_size=settings.db_pool_size,
     max_overflow=settings.db_max_overflow,
+    # `lock_timeout` на соединении: ожидание чужой блокировки (advisory-ключ лимита,
+    # `FOR UPDATE` на сессии) обрывается ошибкой, а не держит соединение пула вечно.
+    connect_args={"server_settings": {"lock_timeout": str(settings.db_lock_timeout_ms)}},
 )
 
 SessionLocal: async_sessionmaker[AsyncSession] = async_sessionmaker(engine, expire_on_commit=False)

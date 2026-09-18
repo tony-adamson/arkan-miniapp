@@ -6,7 +6,8 @@
 from __future__ import annotations
 
 from redis.exceptions import RedisError
-from sqlalchemy import BigInteger, cast, func, select
+from sqlalchemy import func, select
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.errors import api_error
@@ -23,6 +24,7 @@ from app.redis import get_redis
 CATEGORY = "choice"
 IDEMPOTENCY_TTL_S = 600  # §9.5: ключ живёт 10 минут
 PENDING = "pending"
+LOCK_TIMEOUT_SQLSTATE = "55P03"  # PG: ожидание блокировки оборвано `lock_timeout`
 
 LIMIT_MESSAGE = (
     "На сегодня лимит раскладов исчерпан. Прежние можно продолжить, а новый спросим завтра."
@@ -59,6 +61,7 @@ async def create_spread(
     # Подсчёт и вставку одного пользователя нельзя разносить: два параллельных
     # запроса видели бы одно и то же число и оба прошли бы лимит (D18).
     await _lock_user_spreads(db, user.id)
+
     if await count_today_spreads(db, user.id) >= settings.spreads_per_day:
         api_error(429, "rate_limited", LIMIT_MESSAGE)
 
@@ -71,6 +74,9 @@ async def create_spread(
     try:
         spread = await _insert_spread(db, user, question)
     except Exception:
+        # Сначала откат: иначе упавшая транзакция и блокировка лимита держатся
+        # ещё и на время обращения к Redis.
+        await db.rollback()
         # Иначе ключ остаётся `pending` до конца TTL и повтор получает 409,
         # хотя расклада нет.
         if key is not None:
@@ -86,9 +92,17 @@ async def _lock_user_spreads(db: AsyncSession, user_id: int) -> None:
 
     Ключ — сам `users.id`: других advisory-блокировок в приложении нет, а второй
     сценарий обязан взять себе своё пространство (например, парный вариант
-    `pg_advisory_xact_lock(int4, int4)`).
+    `pg_advisory_xact_lock(int4, int4)`). Ожидание ограничено `lock_timeout`
+    соединения (`app/db.py`): дольше него запрос не держит соединение пула, а
+    получает 409 — расклад этого пользователя уже создаётся.
     """
-    await db.execute(select(func.pg_advisory_xact_lock(cast(user_id, BigInteger))))
+    try:
+        await db.execute(select(func.pg_advisory_xact_lock(user_id)))
+    except DBAPIError as error:
+        if getattr(error.orig, "sqlstate", None) != LOCK_TIMEOUT_SQLSTATE:
+            raise
+        await db.rollback()
+        api_error(409, "conflict", PENDING_MESSAGE)
 
 
 async def _replayed(db: AsyncSession, user: User, key: str) -> Spread | None:

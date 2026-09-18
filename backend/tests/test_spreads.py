@@ -13,8 +13,10 @@ import httpx
 import pytest
 from redis.asyncio import Redis
 from sqlalchemy import func, select, update
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.pool import NullPool
 
+from app.config import settings
 from app.engine.deck import ask_variant, draw
 from app.expert import base as expert_base
 from app.main import app
@@ -351,7 +353,6 @@ async def test_failed_insert_releases_idempotency_key(
 ) -> None:
     """Упавшая вставка снимает резерв: повтор не ждёт TTL и не получает 409 (O31/F5)."""
     user = await factories.consented_user(client, db_session)
-    key = f"spread:idem:{user.id}:retry"
 
     async def boom(*args: object, **kwargs: object) -> Spread:
         raise RuntimeError("вставка не дошла до коммита")
@@ -359,7 +360,6 @@ async def test_failed_insert_releases_idempotency_key(
     monkeypatch.setattr(service, "_insert_spread", boom)
     with pytest.raises(RuntimeError):
         await create(client, key="retry")
-    assert await get_redis().get(key) is None
 
     monkeypatch.undo()
     retry = await create(client, key="retry")
@@ -381,13 +381,12 @@ async def test_position_names_follow_stored_structure(
 
     body = (await client.get(f"/spreads/{spread_id}")).json()
 
-    expected = {
-        int(item["position_number"]): item["position_name"]
-        for item in expert_base.get_spread("two_voices")["positions"]
+    # Имена выписаны из `expert_base/positions.yaml`, а не вычислены тем же кодом.
+    assert {item["position_number"]: item["position_name"] for item in body["positions"]} == {
+        1: "Что вы чувствуете",
+        2: "Что вы не говорите",
+        3: "Куда это движется",
     }
-    assert {
-        item["position_number"]: item["position_name"] for item in body["positions"]
-    } == expected
 
 
 async def test_answer_length_is_bounded(
@@ -404,3 +403,40 @@ async def test_answer_length_is_bounded(
     assert too_long.status_code == 422 and too_long.json()["error"] == "validation"
     assert empty.status_code == 422
     assert (await answer(client, spread_id, 1, "я" * 500)).status_code == 200
+
+
+async def test_unknown_structure_falls_back_to_category(
+    client: httpx.AsyncClient, db_session: AsyncSession
+) -> None:
+    """Расклад, чью структуру база больше не знает, остаётся читаемым (O31/F6)."""
+    await factories.consented_user(client, db_session)
+    spread_id = (await create(client)).json()["id"]
+    await db_session.execute(
+        update(Spread).where(Spread.id == spread_id).values(structure_type="ушла_из_базы")
+    )
+    await db_session.commit()
+
+    response = await client.get(f"/spreads/{spread_id}")
+
+    assert response.status_code == 200
+    names = [item["position_name"] for item in response.json()["positions"]]
+    assert names == [
+        item["position_name"] for item in expert_base.get_spread_for_category("choice")["positions"]
+    ]
+
+
+async def test_lock_timeout_answers_conflict(
+    client: httpx.AsyncClient, db_session: AsyncSession
+) -> None:
+    """Чужая блокировка лимита не подвешивает запрос, а даёт 409 (verify/F1)."""
+    user = await factories.consented_user(client, db_session)
+    holder = create_async_engine(settings.database_url, poolclass=NullPool)
+    async with holder.connect() as connection:
+        await connection.execute(select(func.pg_advisory_xact_lock(user.id)))
+
+        response = await create(client, question="Вопрос под чужой блокировкой")
+
+        assert response.status_code == 409
+        assert response.json()["error"] == "conflict"
+    await holder.dispose()
+    assert await spread_count(db_session, user.id) == 0

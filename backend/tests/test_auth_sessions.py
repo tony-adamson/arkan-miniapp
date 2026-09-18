@@ -185,15 +185,30 @@ async def test_forged_cookie_does_not_open_another_session(
     assert user_id is not None
 
 
-async def test_tampered_signature_is_rejected(client: httpx.AsyncClient) -> None:
-    """Подпись от другого номера не проходит проверку (O31/F1)."""
+async def test_tampered_signature_is_rejected(
+    client: httpx.AsyncClient, db_session: AsyncSession
+) -> None:
+    """Подпись одной сессии, подставленная к номеру другой, не работает (O31/F1)."""
     await client.post("/auth/anonymous", json={})
-    sid = session_id(client)
-    stolen = session_cookie_value(sid).partition(".")[2]
+    victim = session_id(client)
+    victim_ref = (await client.post("/auth/consent", json={})).json()["public_ref"]
+    stolen = session_cookie_value(victim).partition(".")[2]
 
-    assert parse_session_cookie(f"{sid + 1}.{stolen}") is None
-    assert parse_session_cookie(str(sid)) is None
-    assert parse_session_cookie(f"{sid}.") is None
+    forged = httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app),
+        base_url=TEST_BASE_URL,
+        headers={"Origin": TEST_BASE_URL},
+        cookies={SESSION_COOKIE: f"{victim}.{stolen}x"},
+    )
+    async with forged:
+        issued = parse_session_cookie(
+            (await forged.post("/auth/anonymous", json={})).cookies[SESSION_COOKIE]
+        )
+        assert issued is not None and issued != victim
+        # Согласие жертвы новой сессии не досталось: она гость.
+        assert (await forged.post("/auth/consent", json={})).json()["public_ref"] != victim_ref
+
+    assert await db_session.scalar(select(Session.user_id).where(Session.id == victim)) is not None
 
 
 async def test_digit_like_characters_in_cookie_issue_new_session(
