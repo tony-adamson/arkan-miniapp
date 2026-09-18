@@ -253,7 +253,7 @@ Telegram, эмбеддер и реранкер в тестах — поддел�
 
 **Задачи**:
 1. `backend/pyproject.toml` (uv, python 3.12): зависимости из §4; ruff (line-length 100); mypy strict для `app/`; pytest `asyncio_mode=auto`.
-2. `app/config.py` (pydantic-settings) — полный список переменных всего плана, чтобы поздние фазы их не добавляли: `ENV`, `APP_ORIGIN`, `DATABASE_URL`, `DB_POOL_SIZE` (20), `DB_MAX_OVERFLOW` (20), `REDIS_URL`, `QDRANT_URL`, `QDRANT_COLLECTION`, `DAILY_SECRET`, `SPREADS_PER_DAY` (5), `MAJOR_ONLY` (false), `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`, `LLM_THINKING` (false), `LLM_TIMEOUT_S` (30), `LLM_PRICE_IN_PER_M`, `LLM_PRICE_OUT_PER_M`, `LLM_FAKE` (false), `LLM_FAKE_DELAY_MS` (0), `MODELS_DIR`, `RERANKER_ENABLED` (true), `BOT_ENABLED` (false), `BOT_TOKEN`, `BOT_USERNAME`, `MINI_APP_URL`, `TELEGRAM_API_BASE` (`https://api.telegram.org`), `TELEGRAM_PROXY` (пусто), `FRAUD_SIGNUPS_PER_SOURCE_HOUR` (20), `FRAUD_MIN_INTERVAL_MS` (1500). Проверка: `ENV=prod` и `LLM_FAKE=true` → ошибка старта.
+2. `app/config.py` (pydantic-settings) — полный список переменных всего плана, чтобы поздние фазы их не добавляли: `ENV`, `APP_ORIGIN`, `DATABASE_URL`, `DB_POOL_SIZE` (20), `DB_MAX_OVERFLOW` (20), `REDIS_URL`, `QDRANT_URL`, `QDRANT_COLLECTION`, `DAILY_SECRET`, `SESSION_SECRET`, `SPREADS_PER_DAY` (5), `MAJOR_ONLY` (false), `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`, `LLM_THINKING` (false), `LLM_TIMEOUT_S` (30), `LLM_PRICE_IN_PER_M`, `LLM_PRICE_OUT_PER_M`, `LLM_FAKE` (false), `LLM_FAKE_DELAY_MS` (0), `MODELS_DIR`, `RERANKER_ENABLED` (true), `BOT_ENABLED` (false), `BOT_TOKEN`, `BOT_USERNAME`, `MINI_APP_URL`, `TELEGRAM_API_BASE` (`https://api.telegram.org`), `TELEGRAM_PROXY` (пусто), `FRAUD_SIGNUPS_PER_SOURCE_HOUR` (20), `FRAUD_MIN_INTERVAL_MS` (1500). Проверка: `ENV=prod` и `LLM_FAKE=true` → ошибка старта.
 3. `app/main.py` — FastAPI с lifespan; `/healthz` → `{"status":"ok"}`; `/metrics` (prometheus-client).
 4. `app/db.py` — async engine (`pool_size`, `max_overflow` из конфига) и sessionmaker.
 5. `app/msk.py` — `msk_now()`, `msk_today()` (Europe/Moscow).
@@ -307,7 +307,7 @@ Telegram, эмбеддер и реранкер в тестах — поддел�
 **Запрещено**: user без `consent_at`; UPDATE/DELETE событий; сессии для `/healthz` и `/metrics`.
 
 **Задачи**:
-1. `sessions.py`: middleware (кроме `/healthz`, `/metrics`) — нет валидной cookie → строка `sessions` (user_id=NULL) и заголовок `Set-Cookie: arkan_sid=<id>; HttpOnly; Secure; SameSite=None; Partitioned; Max-Age=15552000; Path=/`, собранный вручную (параметр `partitioned` в Starlette требует Python 3.14); `last_seen` обновляется.
+1. `sessions.py`: middleware (кроме `/healthz`, `/metrics`) — нет валидной cookie → строка `sessions` (user_id=NULL) и заголовок `Set-Cookie: arkan_sid=<id>.<подпись>; HttpOnly; Secure; SameSite=None; Partitioned; Max-Age=15552000; Path=/`, собранный вручную (параметр `partitioned` в Starlette требует Python 3.14); `last_seen` обновляется. Значение cookie — номер сессии и его `HMAC-SHA256` на `SESSION_SECRET` (D19): номер без подписи, подпись от другого номера и «цифры» вне ASCII (`²`, `٣`) не дают сессии — выдаётся новая гостевая. Разбор cookie живёт в `parse_session_cookie`, и любая фаза, которой нужен id сессии, берёт его там, а не из строки cookie.
 2. `deps.py`: `current_session`, `current_user` (401 без user), `require_json_same_origin` (мутация без `application/json` или с `Origin` ≠ `APP_ORIGIN` → 403).
 3. `POST /auth/anonymous` → 200 (идемпотентно); `POST /auth/consent` → user с `public_ref` (8 символов base32), `consent_at`, привязка к сессии; повтор — тот же user, без события.
 4. `writer.py`: `write_event(type, session_id, user_id, layer, payload)` — только INSERT.
@@ -315,9 +315,9 @@ Telegram, эмбеддер и реранкер в тестах — поддел�
 6. `errors.py`: формат §7.
 7. conftest: ASGI-клиент с `base_url="https://testserver"` и заголовком `Origin: https://testserver`.
 
-**Проверка фазы**: `make test` → exit 0; тесты: (1) первый запрос → `Set-Cookie` с `Secure`, `SameSite=None`, `Partitioned`, строка в `sessions`; (2) второй запрос с cookie — та же сессия; (3) `/healthz` не создаёт сессию; (4) `app_open` гостя → событие с `user_id=NULL`; (5) consent → user и сессия связаны, источник перенесён; (6) повторный consent → тот же user, событий не прибавилось; (7) второй `app_open` с другим источником не меняет `first_source`; (8) `POST /events` с `card_revealed` → 422; (9) `text/plain` → 403; (10) чужой `Origin` → 403.
+**Проверка фазы**: `make test` → exit 0; тесты: (1) первый запрос → `Set-Cookie` с `Secure`, `SameSite=None`, `Partitioned`, строка в `sessions`; (2) второй запрос с cookie — та же сессия; (3) `/healthz` не создаёт сессию; (4) `app_open` гостя → событие с `user_id=NULL`; (5) consent → user и сессия связаны, источник перенесён; (6) повторный consent → тот же user, событий не прибавилось; (7) второй `app_open` с другим источником не меняет `first_source`; (8) `POST /events` с `card_revealed` → 422; (9) `text/plain` → 403; (10) чужой `Origin` → 403; (11) cookie с номером чужой сессии без подписи и с подписью от другого номера → новая гостевая сессия, чужая остаётся за своим user.
 
-**Фокус верификатора**: атрибуты cookie; нет пути создать user без согласия.
+**Фокус верификатора**: атрибуты и подпись cookie; нет пути создать user без согласия и войти в чужую сессию.
 
 **Критерий выхода**: воронка шага 1 наблюдаема до согласия.
 
@@ -814,6 +814,8 @@ Telegram, эмбеддер и реранкер в тестах — поддел�
 - закрыты пробелы трассировки: эндпоинты профиля, кризис в ответах расклада, `POST /auth/link/code`, лимит D18, `MAJOR_ONLY`;
 - контракты черновика утверждены в `SOLUTION.md` (D16–D20) или убраны; частичные отказы и гонки описаны и покрыты тестами;
 - валидатор базы — в неделе 1; hypothesis для колоды; фронт: разрешение React и типов вне корня, ассеты без CDN.
+
+**18.09.2026 — ревью недели 1 (O31)**: cookie сессии подписывается `HMAC-SHA256` на `SESSION_SECRET` (правка фазы 3 и списка переменных фазы 1, D19 в `SOLUTION.md`); фазы 12 и 18 работают с сессией только через `parse_session_cookie`. Там же: гонки закрыты блокировками (`FOR UPDATE` на строке сессии в `/auth/consent`, `pg_advisory_xact_lock` на лимите D18), резерв идемпотентности снимается при неудачной вставке, имена позиций читаются по `structure_type` расклада, `answer` ограничен 1–500 символами, валидатор ловит два расклада на одну тему.
 
 **17.09.2026 — челленджеры (opus, свежие контексты)**. Корректность: 25 находок (15 блокирующих), `GATE: FAIL`. Минимальность: 15 находок (3 блокирующих), `MINIMALITY: FAIL`. Принято всё, изменения:
 
